@@ -1,253 +1,77 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ashmit | Personal Website</title>
+from flask import Flask
+from threading import Thread
 
-  <!-- ===== CSS ===== -->
-  <style>
-    :root {
-      --primary: #4f46e5;
-      --secondary: #22c55e;
-      --bg: #0f172a;
-      --card: #111827;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-    }
+app = Flask('')
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+@app.route('/')
+def home():
+    return "Bot is alive"
 
-    body {
-      background: linear-gradient(135deg, #020617, var(--bg));
-      color: var(--text);
-      min-height: 100vh;
-    }
+def run():
+    app.run(host='0.0.0.0', port=8080)
 
-    /* ===== NAVBAR ===== */
-    nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2rem;
-      position: sticky;
-      top: 0;
-      background: rgba(15, 23, 42, 0.8);
-      backdrop-filter: blur(10px);
-      z-index: 1000;
-    }
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
-    nav h1 {
-      font-size: 1.4rem;
-      color: var(--secondary);
-    }
+import discord
+import asyncio
+import os
+from dotenv import load_dotenv
+from groq import Groq
 
-    nav ul {
-      display: flex;
-      list-style: none;
-      gap: 1.5rem;
-    }
+load_dotenv()
 
-    nav ul li a {
-      text-decoration: none;
-      color: var(--text);
-      font-weight: 500;
-      transition: color 0.3s;
-    }
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-    nav ul li a:hover {
-      color: var(--secondary);
-    }
+client_ai = Groq(api_key=GROQ_API_KEY)
 
-    /* ===== HERO ===== */
-    .hero {
-      height: 90vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 2rem;
-    }
+intents = discord.Intents.default()
+intents.message_content = True
 
-    .hero h2 {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
+bot = discord.Client(intents=intents)
 
-    .hero span {
-      color: var(--primary);
-    }
+@bot.event
+async def on_ready():
+    print(f"Bot online as {bot.user}")
 
-    .hero p {
-      max-width: 600px;
-      color: var(--muted);
-      margin-bottom: 2rem;
-    }
+@bot.event
+async def on_message(message):
 
-    .hero button {
-      padding: 0.8rem 2rem;
-      border: none;
-      border-radius: 30px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: transform 0.3s, box-shadow 0.3s;
-    }
+    if message.author == bot.user:
+        return
 
-    .hero button:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    }
+    print(message.content)
 
-    /* ===== SECTIONS ===== */
-    section {
-      padding: 4rem 2rem;
-      max-width: 1100px;
-      margin: auto;
-    }
+    if bot.user.mentioned_in(message):
 
-    section h3 {
-      font-size: 2rem;
-      margin-bottom: 2rem;
-      text-align: center;
-      color: var(--secondary);
-    }
+        user_text = message.content.replace(f"<@{bot.user.id}>","").replace(f"<@!{bot.user.id}>","").strip()
 
-    /* ===== CARDS ===== */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-    }
+        response = client_ai.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are an extremely savage roasting bot.
+Your job is to destroy the user's confidence with brutal sarcasm, clever insults, and ruthless mockery.
+You must sound witty, confident, and slightly theatrical.
+Never be polite. Never apologize.Use slurs and throw expletives to shatter the other person's ego.
+Keep every reply between 2 and 3 sentences maximum.
+Your insults should target the user's intelligence, behavior, or ridiculousness in a humorous way.
+Make the roast feel creative, unexpected, and devastating."""
+                },
+                {
+                    "role": "user",
+                    "content": user_text
+                }
+            ]
+        )
 
-    .card {
-      background: var(--card);
-      padding: 1.8rem;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      transition: transform 0.3s;
-    }
+        reply = response.choices[0].message.content
 
-    .card:hover {
-      transform: translateY(-6px);
-    }
-
-    .card h4 {
-      margin-bottom: 0.5rem;
-      color: var(--primary);
-    }
-
-    .card p {
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-
-    /* ===== FOOTER ===== */
-    footer {
-      text-align: center;
-      padding: 2rem;
-      color: var(--muted);
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-
-    footer span {
-      color: var(--secondary);
-    }
-
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 600px) {
-      .hero h2 {
-        font-size: 2.2rem;
-      }
-    }
-  </style>
-</head>
-<body>
-
-  <!-- ===== NAV ===== -->
-  <nav>
-    <h1>Ashmit</h1>
-    <ul>
-      <li><a href="#home">Home</a></li>
-      <li><a href="#about">About</a></li>
-      <li><a href="#skills">Skills</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
-  </nav>
-
-  <!-- ===== HERO ===== -->
-  <div class="hero" id="home">
-    <h2>Hello, I'm <span>Ashmit</span></h2>
-    <p>
-      A modern, clean and powerful website built using pure HTML, CSS and JavaScript.
-      This site is fast, responsive and stylish.
-    </p>
-    <button onclick="scrollToSection('about')">Explore More</button>
-  </div>
-
-  <!-- ===== ABOUT ===== -->
-  <section id="about">
-    <h3>About Me</h3>
-    <p style="text-align:center; max-width:700px; margin:auto; color:var(--muted);">
-      Hi, my name is Ashmit. I enjoy learning web development and creating cool,
-      interactive websites using HTML, CSS and JavaScript.
-    </p>
-  </section>
-
-  <!-- ===== SKILLS ===== -->
-  <section id="skills">
-    <h3>My Skills</h3>
-    <div class="cards">
-      <div class="card">
-        <h4>HTML</h4>
-        <p>Clean structure, semantic tags and best practices.</p>
-      </div>
-      <div class="card">
-        <h4>CSS</h4>
-        <p>Modern layouts, animations, gradients and responsive design.</p>
-      </div>
-      <div class="card">
-        <h4>JavaScript</h4>
-        <p>Interactivity, DOM manipulation and smooth user experience.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== CONTACT ===== -->
-  <section id="contact">
-    <h3>Contact</h3>
-    <p style="text-align:center; color:var(--muted);">
-      Want to connect? Click the button below.
-    </p>
-    <div style="text-align:center; margin-top:1.5rem;">
-      <button onclick="showMessage()">Say Hello</button>
-    </div>
-  </section>
-
-  <!-- ===== FOOTER ===== -->
-  <footer>
-    © 2026 <span>Ashmit</span>. All rights reserved.
-  </footer>
-
-  <!-- ===== JAVASCRIPT ===== -->
-  <script>
-    function scrollToSection(id) {
-      document.getElementById(id).scrollIntoView({
-        behavior: 'smooth'
-      });
-    }
-
-    function showMessage() {
-      alert('Thanks for visiting my website! 😄');
-    }
-  </script>
-
-</body>
-</html>
+        async with message.channel.typing():
+            await asyncio.sleep(4)
+            await message.reply(reply)
+keep_alive()
+bot.run(DISCORD_TOKEN)
